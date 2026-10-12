@@ -55,6 +55,8 @@ textarea{resize:vertical;line-height:1.6;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 @media(max-width:520px){.grid2{grid-template-columns:1fr;}.grid3{grid-template-columns:1fr 1fr;}}
 .item-row{display:grid;grid-template-columns:1fr 1fr 1fr 68px 32px;gap:7px;align-items:center;padding:9px 11px;border:1px solid var(--border);margin-bottom:6px;}
+.item-row .f{min-width:0;}
+.item-row .f>.lbl{display:none;}
 @media(max-width:480px){.item-row{grid-template-columns:1fr 1fr 1fr 56px 28px;gap:5px;padding:8px;}}
 .cost-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .cost-wrap table{width:100%;border-collapse:collapse;font-size:10px;min-width:500px;font-family:var(--f);}
@@ -101,7 +103,9 @@ textarea{resize:vertical;line-height:1.6;}
   .item-row>:nth-child(2){grid-column:2;grid-row:1;}
   .item-row>:nth-child(3){grid-column:1;grid-row:2;}
   .item-row>:nth-child(4){grid-column:2;grid-row:2;}
-  .item-row>:nth-child(5){grid-column:3;grid-row:1;width:44px !important;height:44px !important;}
+  .item-row .f>.lbl{display:block;margin-bottom:4px;}
+  .item-row>.del{grid-column:3;grid-row:1 / span 2;display:flex;align-items:flex-end;}
+  .item-row>.del button{width:44px !important;height:44px !important;}
   .tela-precio input{width:90px !important;}
   .cot-tbl th.c,.cot-tbl td.c,.cot-tbl th.r,.cot-tbl td.r{padding-left:6px;}
   .cot-tbl td.r,.cot-tbl th.r{white-space:nowrap;}
@@ -469,20 +473,26 @@ function addRow(){
   const id=++rowId;
   const d=document.createElement("div");
   d.className="item-row";d.id="r"+id;
+  // Cada control va en un contenedor .f con su etiqueta (visible solo en celular, donde no hay encabezado de columnas)
   d.innerHTML=`
+    <div class="f"><span class="lbl">Producto</span>
     <select aria-label="Producto" onchange="updateRowCorte(${id});calc()">
       <option value="polera">Polera</option>
       <option value="babytee">Baby Tee</option>
-    </select>
+    </select></div>
+    <div class="f"><span class="lbl">Talla</span>
     <select aria-label="Talla" onchange="calc()">
       ${TLS.map(t=>`<option value="${t}">${t}${XLS.includes(t)?" +5":""}</option>`).join("")}
-    </select>
+    </select></div>
+    <div class="f"><span class="lbl">Corte</span>
     <select id="corte-${id}" aria-label="Corte" onchange="calc()">
       <option value="regular">Regular</option>
       <option value="oversize">Oversize +5</option>
-    </select>
-    <input type="number" value="1" min="0" max="500" step="1" inputmode="numeric" aria-label="Cantidad" oninput="calc()" onchange="clampQty(this)" style="text-align:center;">
-    <button class="btn btn-ghost" onclick="delRow(${id})" style="padding:0;width:32px;height:36px;font-size:16px;">×</button>`;
+    </select></div>
+    <div class="f"><span class="lbl">Cantidad</span>
+    <input type="number" value="1" min="0" max="500" step="1" inputmode="numeric" aria-label="Cantidad" oninput="calc()" onchange="clampQty(this)" style="text-align:center;"></div>
+    <div class="del"><button class="btn btn-ghost" aria-label="Quitar fila" onclick="delRow(${id})" style="padding:0;width:32px;height:36px;font-size:16px;">×</button></div>`;
+  d.querySelectorAll("select")[1].value="M";
   document.getElementById("rows").appendChild(d);
   updateRowCorte(id);
   calc();
