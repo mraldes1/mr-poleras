@@ -1,4 +1,4 @@
-const CACHE = 'mr-poleras-v1';
+const CACHE = 'mr-poleras-v2';
 const PRECACHE = [
   '/',
   '/index.html',

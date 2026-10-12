@@ -1,6 +1,6 @@
 {
-  "name": "MR Poleras",
-  "short_name": "MR Poleras",
+  "name": "made by MR",
+  "short_name": "made by MR",
   "description": "Cotizador y gestión de pedidos para MR Poleras",
   "start_url": "/",
   "display": "standalone",
