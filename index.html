@@ -819,6 +819,13 @@ function expPDF(){
 </script>
 <script>
 if ('serviceWorker' in navigator) {
+  // Si ya habia una version instalada y toma el control una nueva, recarga una vez para mostrarla
+  var teniaControl = !!navigator.serviceWorker.controller, recargando = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if (!teniaControl || recargando) return;
+    recargando = true;
+    location.reload();
+  });
   window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js'); });
 }
 </script>
