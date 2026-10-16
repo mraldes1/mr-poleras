@@ -348,10 +348,23 @@ let telaActiva="j20";
 
 // ── PRODUCTOS ──
 const PRODUCTOS={
-  polera:{nombre:"Polera",consumo:0.75,dtf:18.41,planchado:6,tieneCorte:true},
+  polera:{nombre:"Polera",dtf:18.41,planchado:6,tieneCorte:true},
   babytee:{nombre:"Baby Tee",consumo:0.55,dtf:12,planchado:4,tieneCorte:false},
 };
 
+// ── CORTES DE POLERA ──
+// Consumo de tela en metros por prenda, segun el corte (el Baby Tee usa el suyo en PRODUCTOS).
+// AJUSTAR con el consumo real: el de boxy fit todavia no esta medido, se mide en la primera orden.
+const CONSUMO_CORTE={regular:0.75,oversize:0.75,boxy:0.75};
+// Extra en Bs por corte (suma al costo y al precio); la talla suma aparte (XL +5, niño -5).
+const EXTRA_CORTE={regular:0,oversize:5,boxy:0};
+const CORTES={
+  regular:{pdf:"Polera Regular",corto:"REG",msg:""},
+  oversize:{pdf:"Polera Oversize",corto:"OS",msg:"oversize"},
+  boxy:{pdf:"Polera Boxy Fit",corto:"BOX",msg:"boxy fit"},
+};
+function consumoFila(r){return r.prod==="polera"?(CONSUMO_CORTE[r.corte]??CONSUMO_CORTE.regular):PRODUCTOS[r.prod].consumo;}
+function techo5(v){return Math.ceil(v/5-1e-9)*5;}
 const TLS=["6","8","10","12","14","16","S","M","L","XL","XXL","XXXL"],XLS=["XL","XXL","XXXL"],NINOS=["6","8","10","12","14","16"];
 const CE=35;
 let cotN=1,rowId=0,pMode="obj",tecnica="dtf",R=null;
@@ -381,22 +394,20 @@ function leerPedido(){
 
 function costoFila(r,ctx){
   const P=PRODUCTOS[r.prod];
-  const telaUnit=(P.consumo/ctx.tela.rend)*ctx.tela.precio;
+  const telaUnit=(consumoFila(r)/ctx.tela.rend)*ctx.tela.precio;
   let estampUnit=0,planchadoUnit=0;
   if(tecnica==="dtf"){estampUnit=P.dtf;planchadoUnit=P.planchado;}
   else if(tecnica==="serigrafia"||tecnica==="bordado"){estampUnit=ctx.manualPrecio;planchadoUnit=P.planchado;}
-  const esOS=r.corte==="oversize"&&r.prod==="polera";
-  const ex=(esOS?5:0)+(isXL(r.talla)?5:0)+(isNino(r.talla)?-5:0);
+  const ex=(r.prod==="polera"?(EXTRA_CORTE[r.corte]||0):0)+(isXL(r.talla)?5:0)+(isNino(r.talla)?-5:0);
   const cBase=telaUnit+ctx.confUnit+estampUnit+planchadoUnit+ctx.eU;
   return{telaUnit,estampUnit,planchadoUnit,ex,cBase,cU:cBase+ex};
 }
 
-// modo "min": piso 30%, redondea hacia arriba para no caer bajo el piso. modo "obj": margen objetivo, al 5 mas cercano.
+// Piso 30%: techo al 5 del precio que da 30%. modo "min" = el piso; modo "obj" = el mayor entre el objetivo (al 5 mas cercano) y el piso.
 function precioFila(r,ctx,modo,mgPct){
   const c=costoFila(r,ctx);
-  const base=modo==="min"
-    ?Math.ceil(c.cBase/(1-0.30)/5-1e-9)*5
-    :r5(c.cBase/(1-mgPct/100));
+  const piso=techo5(c.cBase/(1-0.30));
+  const base=modo==="min"?piso:Math.max(r5(c.cBase/(1-mgPct/100)),piso);
   return base+c.ex;
 }
 
@@ -484,6 +495,7 @@ function addRow(){
     <select id="corte-${id}" aria-label="Corte" onchange="calc()">
       <option value="regular">Regular</option>
       <option value="oversize">Oversize +5</option>
+      <option value="boxy">Boxy fit</option>
     </select></div>
     <div class="f"><span class="lbl">Talla</span>
     <select aria-label="Talla" onchange="calc()">
@@ -558,7 +570,7 @@ function calc(){
   document.getElementById("r-cp").textContent=costoPromedio.toFixed(2)+" Bs";
 
   document.getElementById("dsg-body").innerHTML=dsg.map(d=>`<tr>
-    <td><strong>${PRODUCTOS[d.prod].nombre}</strong> <span style="color:var(--muted);font-size:9px;">${d.talla}${d.prod==="polera"?" "+(d.corte==="oversize"?"OS":"REG"):""} ×${d.q}</span></td>
+    <td><strong>${PRODUCTOS[d.prod].nombre}</strong> <span style="color:var(--muted);font-size:9px;">${d.talla}${d.prod==="polera"?" "+CORTES[d.corte].corto:""} ×${d.q}</span></td>
     <td>${d.telaUnit.toFixed(2)}</td>
     <td>${d.confUnit.toFixed(2)}</td>
     <td>${d.estampUnit>0?d.estampUnit.toFixed(2):"—"}</td>
@@ -568,7 +580,7 @@ function calc(){
   </tr>`).join("");
 
   const tela2=getTela();
-  const baseTelaUnit=(PRODUCTOS.polera.consumo/tela2.rend)*tela2.precio;
+  const baseTelaUnit=(CONSUMO_CORTE.regular/tela2.rend)*tela2.precio;
   document.getElementById("dsg-base").innerHTML=`
     <td style="font-size:8px;color:var(--muted);padding-top:10px;letter-spacing:1px;font-weight:600;">BASE (Polera)</td>
     <td style="padding-top:10px;">${baseTelaUnit.toFixed(2)}</td>
@@ -623,7 +635,7 @@ function renderCot(){
 
   const filas=baseRows.map(r=>{
     const P=PRODUCTOS[r.prod];
-    const nombreProd=r.prod==="polera"?(r.corte==="oversize"?"Polera Oversize":"Polera Regular"):"Baby Tee";
+    const nombreProd=r.prod==="polera"?CORTES[r.corte].pdf:"Baby Tee";
     if(r.q===0){
       return `<tr style="opacity:0.4;">
         <td class="bold">${nombreProd}</td>
@@ -735,9 +747,9 @@ function copiarMensaje(){
   const tieneBaby = act.some(r=>r.prod==="babytee");
   const prodLabel = tienePolera && tieneBaby ? "prendas" : tienePolera ? "poleras" : "baby tees";
 
-  const tieneOversize = act.some(r=>r.prod==="polera" && r.corte==="oversize");
-  const soloOversize = tieneOversize && act.every(r=>r.prod==="polera" && r.corte==="oversize");
-  const oversizeTxt = soloOversize ? " oversize" : "";
+  // El corte se nombra solo si todas las filas activas son poleras del mismo corte (oversize o boxy fit)
+  const cortes = [...new Set(act.map(r=>r.prod==="polera" ? r.corte : "-"))];
+  const corteTxt = (!tieneBaby && cortes.length===1 && CORTES[cortes[0]] && CORTES[cortes[0]].msg) ? " "+CORTES[cortes[0]].msg : "";
 
   // Precio por unidad: uno solo si todas las filas cuestan igual, si no un rango
   const precios = [...new Set(act.map(r=>r.precio))].sort((a,b)=>a-b);
@@ -771,7 +783,7 @@ Las prendas son de algodón peruano premium (${ctx.tela.nombre}), el diseño ser
 Las prendas son de algodón peruano premium (${ctx.tela.nombre}).`;
 
   const msg =
-`${saludo}, te paso la cotización para ${R.totActivo}${oversizeTxt} ${prodLabel}. ${precioTxt}${lineaTecnica}
+`${saludo}, te paso la cotización para ${R.totActivo} ${prodLabel}${corteTxt}. ${precioTxt}${lineaTecnica}
 
 Forma de pago: ${ap}% de adelanto al confirmar (${bsFmt(aM)}) y el saldo contra entrega. Plazo de entrega: ${pl} días hábiles desde la confirmación del adelanto. Validez: ${vl} días calendario.${lineaDiseno}
 
